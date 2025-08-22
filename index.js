@@ -4,8 +4,6 @@ const axios = require("axios");
 const app = express();
 const PORT = 3000;
 
-// Replace with your API key
-const API_KEY = "540ded25858fec9c769460f5db14b956";
 
 app.get("/", async (req, res) => {
   const city = "kolkata";
