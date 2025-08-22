@@ -1,67 +1,48 @@
-
-const { WEATHER_API_KEY, GEMINI_API_KEY } = require('./config.js');
 const express = require("express");
 const axios = require("axios");
+const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = 3000;
 
-app.use(express.json());
+// Middleware
+app.use(express.static("public")); // for your HTML/CSS/JS files
+app.use(bodyParser.json());
 
-app.post("/chat", async (req, res) => {
-  const { city, message } = req.body;
-  if (!city || !message) {
-    return res.status(400).json({ error: "City and message required" });
+const { WEATHER_API_KEY, GEMINI_API_KEY } = require("./config");
+
+// Weather endpoint
+app.get("/weather", async (req, res) => {   // <-- FIXED
+  const { lat, lon } = req.query;
+  if (!lat || !lon) {
+    return res.status(400).json({ error: "Missing latitude or longitude" });
   }
 
   try {
-    // Fetch weather data for the city
-    const weatherRes = await axios.get(
-      `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${WEATHER_API_KEY}&units=metric`
+    const response = await axios.get(
+      `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`
     );
-    const weatherData = weatherRes.data;
-
-    // Build the prompt
-    const geminiPrompt = `You are a very concise and brief weather chatbot for ${weatherData.name}. Respond to the user's query about the weather in less than 50 words.
-
-Current weather in ${weatherData.name}:
-Temperature: ${Math.round(weatherData.main.temp)}°C
-Weather: ${weatherData.weather[0].description}
-Humidity: ${weatherData.main.humidity}%
-Wind Speed: ${(weatherData.wind.speed * 3.6).toFixed(1)} km/h
-
-User query: "${message}"`;
-
-    // Call Gemini API
-    const aiRes = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        contents: [{
-          parts: [{ text: geminiPrompt }]
-        }]
-      },
-      {
-        headers: { "Content-Type": "application/json" }
-      }
-    );
-
-    const candidates = aiRes.data.candidates;
-    let reply = "I couldn't generate a response for that.";
-    if (
-      candidates &&
-      candidates.length > 0 &&
-      candidates[0].content &&
-      candidates[0].content.parts.length > 0
-    ) {
-      reply = candidates[0].content.parts[0].text;
-    }
-
-    res.json({ reply });
-  } catch (error) {
-    res.status(500).json({ error: "Failed to get AI response." });
+    res.json(response.data);
+  } catch (err) {
+    console.error("Weather API error:", err.message);
+    res.status(500).json({ error: "Failed to fetch weather" });
   }
 });
 
+// Chat endpoint (dummy bot for now)
+app.post("/chat", (req, res) => {
+  const { city, message } = req.body;
+  if (!city || !message) {
+    return res.status(400).json({ error: "Missing city or message" });
+  }
+
+  // Very simple bot logic for now
+  let reply = `The weather in ${city} looks ${message.includes("rain") ? "cloudy 🌧" : "fine ☀"}.`;
+
+  res.json({ reply });
+});
+
+// Start server
 app.listen(PORT, () => {
-  console.log(`🌦️ Weather app running at http://localhost:${PORT}`);
+  console.log(`🌦 Weather app running at http://localhost:${PORT}`);
 });
