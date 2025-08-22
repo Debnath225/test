@@ -1,4 +1,4 @@
-import { WEATHER_API_KEY, GEMINI_API_KEY } from './config.js';
+
 let currentWeather = '';
 let currentCity = '';
 let currentTemp = '';
@@ -21,7 +21,7 @@ function getWeatherEmoji(weather) {
 }
 
 function fetchWeather(lat, lon) {
-  fetch(`https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&appid=${WEATHER_API_KEY}&units=metric`)
+  fetch(`/weather?lat=${lat}&lon=${lon}`)
     .then(res => res.json())
     .then(data => {
       currentWeather = data.weather[0].description;
@@ -62,32 +62,22 @@ async function sendMessage() {
   const message = input.value.trim();
   if (!message) return;
 
+  // Get the city name from the weather card
+  const city = document.getElementById('city').textContent;
+
   // Add the user's message to the chat
   addMessage('user', message);
   input.value = '';
 
-  // Check for greetings and respond immediately
-  if (message.toLowerCase() === 'hi' || message.toLowerCase() === 'hello') {
-    addMessage('bot', 'Hello');
-    return; // Exit the function to prevent further processing
-  }
+  // Send the city and message to the backend
+  const response = await fetch('/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ city, message })
+  });
 
-  // Show typing indicator for other queries
-  const typingIndicator = document.createElement('div');
-  typingIndicator.className = 'message bot typing-indicator';
-  typingIndicator.textContent = '...';
-  document.getElementById('chat').appendChild(typingIndicator);
-  document.getElementById('chat').scrollTop = document.getElementById('chat').scrollHeight;
-
-  try {
-    const aiResponse = await generateReply(message);
-    document.getElementById('chat').removeChild(typingIndicator);
-    addMessage('bot', aiResponse);
-  } catch (error) {
-    document.getElementById('chat').removeChild(typingIndicator);
-    addMessage('bot', 'Sorry, I couldn\'t get a response. Please try again later.');
-    console.error('API call failed:', error);
-  }
+  const data = await response.json();
+  addMessage('bot', data.reply || data.error);
 }
 function addMessage(sender, text) {
   const chat = document.getElementById('chat');
@@ -116,15 +106,14 @@ async function generateReply(message) {
   
   User query: "${message}"`;
 
-  const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+  const response = await fetch(`/chat`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({
-      contents: [{
-        parts: [{ text: geminiPrompt }]
-      }]
+     body: JSON.stringify({
+      city: currentCity, // Use the current city from your weather data
+      message: message
     })
   });
 
