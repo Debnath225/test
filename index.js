@@ -9,7 +9,9 @@ const PORT = 3000;
 app.use(express.static("public")); // for your HTML/CSS/JS files
 app.use(bodyParser.json());
 
-const { WEATHER_API_KEY, GEMINI_API_KEY } = require("./config");
+const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
 
 // Weather endpoint
 app.get("/weather", async (req, res) => {   // <-- FIXED
