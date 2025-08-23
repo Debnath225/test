@@ -12,9 +12,9 @@ app.use(bodyParser.json());
 const WEATHER_API_KEY = process.env.WEATHER_API_KEY;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-
 // Weather endpoint
-app.get("/weather", async (req, res) => {   // <-- FIXED
+app.get("/weather", async (req, res) => {
+  // <-- FIXED
   const { lat, lon } = req.query;
   if (!lat || !lon) {
     return res.status(400).json({ error: "Missing latitude or longitude" });
@@ -32,16 +32,34 @@ app.get("/weather", async (req, res) => {   // <-- FIXED
 });
 
 // Chat endpoint (dummy bot for now)
-app.post("/chat", (req, res) => {
+app.post("/chat", async (req, res) => {
   const { city, message } = req.body;
   if (!city || !message) {
     return res.status(400).json({ error: "Missing city or message" });
   }
 
-  // Very simple bot logic for now
-  let reply = `The weather in ${city} looks ${message.includes("rain") ? "cloudy 🌧" : "fine ☀"}.`;
-
-  res.json({ reply });
+  try {
+    let reply;
+    const response = await axios.post(
+      "https://api.gemini.com/v1/engines/gemini-1.5-turbo/completions",
+      {
+        prompt: `The weather in ${city} is ${message}. How does that make you feel?`,
+        max_tokens: 50,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${GEMINI_API_KEY}`,
+        },
+      }
+    );
+    reply = response.data.choices[0].text.trim();
+    console.log("Gemini response:", reply);
+  } catch (err) {
+    console.error("Gemini API error:", err.message);
+    reply = "I'm having trouble connecting to the weather service right now.";
+  } finally {
+    res.json({ reply });
+  }
 });
 
 // Start server
