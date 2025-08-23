@@ -32,34 +32,50 @@ app.get("/weather", async (req, res) => {
 });
 
 // Chat endpoint (dummy bot for now)
-app.post("/chat", async (req, res) => {
+app.post("/chat", async(req, res) => {
   const { city, message } = req.body;
   if (!city || !message) {
     return res.status(400).json({ error: "Missing city or message" });
   }
-
   try {
-    let reply;
-    const response = await axios.post(
-      "https://api.gemini.com/v1/engines/gemini-1.5-turbo/completions",
+    const geminiresponse = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
-        prompt: `The weather in ${city} is ${message}. How does that make you feel?`,
-        max_tokens: 50,
-      },
-      {
+        method: "POST",
         headers: {
-          Authorization: `Bearer ${GEMINI_API_KEY}`,
+          "Content-Type": "application/json"
         },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: "user",
+              parts: [
+                { text: `The current city is ${city}. The user says: ${message}. Respond appropriately.` }
+              ]
+            }
+          ]
+        })
       }
     );
-    reply = response.data.choices[0].text.trim();
-    console.log("Gemini response:", reply);
+
+    const data = await geminiresponse.json();
+    return res.json({ reply: data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated." });
+  //   console.log("Gemini reply",data.candidates?.[0]?.content?.parts?.[0]?.text);
+  // return res = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response generated.";
+    
+    // // Safely extract text
+    // const reply =
+    //   data.candidates?.[0]?.content?.parts?.[0]?.text ||
+    //   "No response generated.";
+
+    // console.log("Gemini reply:", reply);
+    // return reply;
+
   } catch (err) {
-    console.error("Gemini API error:", err.message);
-    reply = "I'm having trouble connecting to the weather service right now.";
-  } finally {
-    res.json({ reply });
+    console.error("Gemini API error:", err);
+    return "Failed to fetch response from Gemini API";
   }
+
 });
 
 // Start server
